@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from main import colors
 
 load_dotenv()
-ADMIN_ROLE_ID = os.getenv('ADMIN_ROLE')
+ADMIN_ROLE_ID = int(os.getenv('ADMIN_ROLE'))
 
 class AdminCommands(commands.Cog):
     def __init__(self, bot):
