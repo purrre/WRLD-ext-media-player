@@ -1,0 +1,5 @@
+py-cord
+aiohttp
+PyNaCl
+local-ffmpeg
+python-dotenv
