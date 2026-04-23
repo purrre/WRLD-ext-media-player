@@ -9,12 +9,15 @@ from typing import Optional
 from urllib.parse import quote
 import os
 import sys
+import time
 from dotenv import load_dotenv
 import random
+import stats
 
 from mobile import WRLD2
 
 load_dotenv()
+stats.init()
 
 class colors:
     main = 0x6A0DAD
@@ -50,7 +53,7 @@ intents.guilds = True
 
 DiscordWebSocket.identify = WRLD2
 bot = commands.Bot(
-    command_prefix=commands.when_mentioned_or('..'),
+    command_prefix=commands.when_mentioned_or('...'),
     intents=intents,
     help_command=None,
     case_insensitive=True
@@ -96,6 +99,24 @@ class MusicPlayer:
         self.radio_mode = None
         self.voice_client: discord.VoiceClient = None
         self.session: aiohttp.ClientSession = None
+        self.song_start_time = None
+        self.vc_join_time = None
+
+    def on_vc_join(self):
+        if not self.vc_join_time:
+            self.vc_join_time = time.time()
+
+    def on_vc_leave(self):
+        if self.vc_join_time:
+            elapsed = time.time() - self.vc_join_time
+            stats.add_time("total_vc_time", elapsed)
+            self.vc_join_time = None
+
+    def on_song_end(self):
+        if self.song_start_time:
+            elapsed = time.time() - self.song_start_time
+            stats.add_time("total_play_time", elapsed)
+            self.song_start_time = None
 
     async def get_channel(self):
         channel_id = os.getenv('CHANNEL')
@@ -185,6 +206,7 @@ class MusicPlayer:
             if self.radio_mode:
                 radio_song = await self.get_radio_song()
                 if radio_song:
+                    radio_song["_from_radio"] = True
                     self.add_to_queue(radio_song)
                 else:
                     channel = await self.get_channel()
@@ -203,6 +225,11 @@ class MusicPlayer:
         self.current_song = self.queue.popleft()
         self.is_playing = True
         self.is_paused = False
+
+        is_radio = self.current_song.pop("_from_radio", False)
+        stats.increment("total_tracks_played")
+        if is_radio:
+            stats.increment("radio_songs_played")
 
         path = self.current_song.get("path")
         if not path:
@@ -238,11 +265,13 @@ class MusicPlayer:
         def after_playing(error):
             if error:
                 print(f"Playback error: {error}")
-            
+
+            self.on_song_end()
             bot.loop.create_task(self.play_next(ctx))
 
         self.voice_client = vc
         vc.play(source, after=after_playing)
+        self.song_start_time = time.time()
 
         channel = await self.get_channel()
         if channel:
@@ -260,6 +289,8 @@ class MusicPlayer:
             await channel.send(message_cont, view=view)
 
     async def cleanup(self):
+        self.on_song_end()
+        self.on_vc_leave()
         if self.session and not self.session.closed:
             await self.session.close()
 
@@ -283,6 +314,11 @@ async def help(ctx):
     )
 
     await ctx.reply(f"Prefix: `{ctx.prefix}` ```{hlist}```")
+
+@bot.event
+async def on_voice_state_update(member, before, after):
+    if member.id == bot.user.id and before.channel and not after.channel:
+        player.on_vc_leave()
 
 @bot.event
 async def on_ready():

@@ -4,7 +4,7 @@ from discord.ext import commands
 import time
 import platform
 import re
-
+import stats
 from main import colors
 
 class MusicCommands(commands.Cog):
@@ -30,6 +30,7 @@ class MusicCommands(commands.Cog):
             await vc.move_to(channel)
         else:
             await channel.connect()
+            self.player.on_vc_join()
 
         await ctx.send(f"Joined <#{channel.id}>")
 
@@ -42,6 +43,7 @@ class MusicCommands(commands.Cog):
             if not ctx.author.voice:
                 return await ctx.reply("You need to be in a vc.")
             await ctx.author.voice.channel.connect()
+            self.player.on_vc_join()
 
         async with ctx.typing():
             song_data = None
@@ -135,7 +137,7 @@ class MusicCommands(commands.Cog):
             text = f"**{song.get('name', 'Unknown')}**\n{era_name}"
 
             if song.get("length"):
-                text += f" • {song['length']}"
+                text += f" - {song['length']}"
 
             embed.add_field(name="Now Playing", value=text, inline=False)
 
@@ -206,6 +208,7 @@ class MusicCommands(commands.Cog):
             if not ctx.author.voice:
                 return await ctx.reply("You need to be in a vc.")
             await ctx.author.voice.channel.connect()
+            self.player.on_vc_join()
 
         self.player.radio_mode = True
 
@@ -225,12 +228,26 @@ class MusicCommands(commands.Cog):
     @commands.command(name="about")
     async def about(self, ctx):
         uptime = self._format_uptime(int(time.time() - self.start_time))
+        db_stats = stats.get_stats()
+
+        total_tracks = int(db_stats.get("total_tracks_played", 0))
+        total_play_time = int(db_stats.get("total_play_time", 0))
+        total_vc_time = int(db_stats.get("total_vc_time", 0))
+        radio_songs = int(db_stats.get("radio_songs_played", 0))
+
+        os_name = platform.system()
+        if os_name == "Darwin":
+            os_name = "macOS"
+
         embed=discord.Embed(title='WRLD 2', description=f'WRLD 2 is an extension of WRLD by purree, to provide Juice WRLD media in Voice Channels. It is exclusive to the JUICEWRLDAPI server, however is open source so it could be self built and hosted. Created in Python v{platform.python_version()} and made possible by juicewrldapi.com', color=colors.main)
         embed.add_field(name='📊 Stats', value=
                         f'`{uptime}` uptime\n'
-                        f'`{len(self.bot.users)}` users\n'
+                        f'`{total_tracks}` total tracks played\n'
+                        f'`{self._format_uptime(total_play_time)}` spent playing tracks\n'
+                        f'`{self._format_uptime(total_vc_time)}` spent in vc\n'
+                        f'`{radio_songs}` radio songs played\n'
                         f'`{len(self.bot.commands)}` commands\n'
-                        f'`{platform.system()} {platform.release()}` OS'
+                        f'`{os_name}` OS'
                         )
         embed.add_field(name='<:github:1413031789961805875> GitHub', value='[Click Here](https://github.com/purrre/WRLD-ext-media-player/)')
         embed.set_footer(text='Made with 💖 by @purree')

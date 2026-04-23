@@ -37,6 +37,8 @@ class AdminCommands(commands.Cog):
         if not vc:
             return await ctx.reply("Not in a vc.")
 
+        self.player.on_song_end()
+        self.player.on_vc_leave()
         self.player.queue.clear()
         self.player.current_song = None
         self.player.is_playing = False
@@ -51,6 +53,7 @@ class AdminCommands(commands.Cog):
         if not vc:
             return await ctx.reply("Not connected to vc.")
 
+        self.player.on_song_end()
         self.player.queue.clear()
         self.player.current_song = None
         self.player.is_playing = False
