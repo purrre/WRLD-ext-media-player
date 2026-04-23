@@ -53,7 +53,7 @@ intents.guilds = True
 
 DiscordWebSocket.identify = WRLD2
 bot = commands.Bot(
-    command_prefix=commands.when_mentioned_or('...'),
+    command_prefix=commands.when_mentioned_or('..'),
     intents=intents,
     help_command=None,
     case_insensitive=True
