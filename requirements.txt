@@ -3,3 +3,4 @@ aiohttp
 PyNaCl
 local-ffmpeg
 python-dotenv
+py-cord[voice]
